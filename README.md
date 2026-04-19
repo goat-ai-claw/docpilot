@@ -17,9 +17,11 @@ Documentation drift happens when code changes but the docs do not. A CLI flag ge
 
 ## See it in action
 
-[![DocPilot PR comment demo](assets/docpilot-demo-pr-comment.png)](https://github.com/goat-ai-claw/docpilot/pull/1)
+[![DocPilot walkthrough GIF](assets/docpilot-demo-walkthrough.gif)](https://github.com/goat-ai-claw/docpilot/pull/1)
 
-Real example from [PR #1](https://github.com/goat-ai-claw/docpilot/pull/1): DocPilot reviews the diff, summarizes the documentation impact, flags the exact file that needs updating, and drafts a changelog entry.
+Animated walkthrough of a real [PR #1](https://github.com/goat-ai-claw/docpilot/pull/1) comment: DocPilot summarizes the documentation impact, flags the exact file that needs updating, and suggests a changelog entry.
+
+[![DocPilot PR comment screenshot](assets/docpilot-demo-pr-comment.png)](https://github.com/goat-ai-claw/docpilot/pull/1)
 
 ## Quickstart
 
