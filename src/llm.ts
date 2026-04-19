@@ -22,6 +22,20 @@ function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+function shouldRetryLLMError(error: Error): boolean {
+  const status = (error as Error & { status?: number }).status;
+
+  if (typeof status === 'number') {
+    if (status === 408 || status === 409 || status === 429 || status >= 500) {
+      return true;
+    }
+
+    return false;
+  }
+
+  return true;
+}
+
 export async function callLLM(
   apiKey: string,
   model: string,
@@ -53,6 +67,11 @@ export async function callLLM(
       return { content, usage };
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
+
+      if (!shouldRetryLLMError(lastError)) {
+        throw lastError;
+      }
+
       if (attempt < MAX_RETRIES) {
         const delay = BASE_RETRY_DELAY_MS * attempt;
         logWarning(

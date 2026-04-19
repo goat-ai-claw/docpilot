@@ -119,6 +119,7 @@ In `auto-update` mode, DocPilot commits suggestions directly to the PR branch wr
 
 - DocPilot sends pull request diffs and relevant documentation context to OpenAI for analysis
 - Do not enable it on repositories where that data must never leave GitHub
+- If the model returns malformed or incomplete structured output, DocPilot fails the run instead of quietly reporting `impact = none`, so broken analysis does not masquerade as "all clear"
 - Like any LLM-powered reviewer, suggestions can be wrong — keep a human in the loop before merging doc changes
 
 ## Why not just use a code review bot or docs platform?
