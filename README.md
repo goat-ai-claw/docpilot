@@ -2,18 +2,18 @@
 
 [![CI](https://github.com/goat-ai-claw/docpilot/actions/workflows/ci.yml/badge.svg)](https://github.com/goat-ai-claw/docpilot/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) [![GitHub stars](https://img.shields.io/github/stars/goat-ai-claw/docpilot?style=social)](https://github.com/goat-ai-claw/docpilot/stargazers)
 
-**AI-powered documentation that stays in sync with your code.**
+**Catch documentation drift before merge.**
 
-DocPilot is a GitHub Action that analyzes every pull request and tells you exactly which docs need updating — before you merge stale documentation into main.
+DocPilot is a lightweight GitHub Action that checks pull requests for missing README, docs, and changelog updates — then drafts suggestions right in GitHub.
+
+- **Purpose-built for docs drift** — not another generic AI review bot
+- **Runs in your existing PR workflow** — no new platform, dashboard, or docs migration
+- **Works with the docs you already have** — `README.md`, `docs/`, `CHANGELOG.md`, release notes
+- **Cheap + transparent** — BYO OpenAI key, typically ~`$0.001–$0.005` per PR
 
 ## Why DocPilot
 
-Documentation drift is inevitable. Functions get renamed, config keys change, new features ship — and the README still describes the old behavior. Code review catches bugs; DocPilot catches docs debt.
-
-- **Instant analysis** — posts a structured comment on every PR with specific, file-level suggestions
-- **No server required** — runs entirely in GitHub Actions using your own OpenAI key
-- **Auto-update mode** — optionally commits doc suggestions directly to the PR branch
-- **Changelog generation** — drafts Keep-a-Changelog entries from your diff automatically
+Documentation drift happens when code changes but the docs do not. A CLI flag gets renamed, a config key changes, a feature ships — and the README still describes the old behavior. Code review catches bugs; DocPilot catches docs debt before merge.
 
 ## See it in action
 
@@ -100,6 +100,17 @@ jobs:
 ```
 
 In `auto-update` mode, DocPilot commits suggestions directly to the PR branch wrapped in review markers. Authors merge, edit, or discard them as needed.
+
+## Why not just use a code review bot or docs platform?
+
+| Option | Best for | Tradeoff |
+|--------|----------|----------|
+| **DocPilot** | Catching docs drift inside normal PR review | Focused scope by design |
+| Generic AI review bots | Broad code review across many issue types | Docs coverage is usually incidental, not the product |
+| Docs platforms | Hosting / publishing / search / docs portals | Heavier adoption, migration, and subscription overhead |
+| PR templates + manual review | Lightweight reminders | Easy to ignore, inconsistent in practice |
+
+DocPilot is intentionally narrow: it answers one high-value question in every PR — **did this code change require a docs update?**
 
 ## Cost
 
