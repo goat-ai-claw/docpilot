@@ -7,7 +7,7 @@
     "build": "ncc build src/index.ts -o dist --source-map --license licenses.txt",
     "build:prod": "ncc build src/index.ts -o dist",
     "lint": "tsc --noEmit",
-    "test": "echo \"No tests yet\" && exit 0"
+    "test": "jest --verbose"
   },
   "dependencies": {
     "@actions/core": "^1.10.1",
@@ -15,8 +15,11 @@
     "openai": "^4.47.1"
   },
   "devDependencies": {
+    "@types/jest": "^30.0.0",
     "@types/node": "^20.12.7",
     "@vercel/ncc": "^0.38.1",
+    "jest": "^30.3.0",
+    "ts-jest": "^29.4.9",
     "typescript": "^5.4.5"
   },
   "license": "MIT"

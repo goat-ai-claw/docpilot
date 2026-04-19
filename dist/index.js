@@ -35766,7 +35766,7 @@ function buildComment(analysis, prNumber) {
             'All existing docs look accurate against the changes.');
         lines.push('');
         lines.push('---');
-        lines.push('*Powered by [DocPilot](https://github.com/docpilot-ai/docpilot) — AI docs that stay fresh*');
+        lines.push('*Powered by [DocPilot](https://github.com/goat-ai-claw/docpilot) — AI docs that stay fresh*');
         return lines.join('\n');
     }
     // Per-file suggestions
@@ -35823,7 +35823,7 @@ function buildComment(analysis, prNumber) {
         lines.push('');
     }
     lines.push('---');
-    lines.push('*Powered by [DocPilot](https://github.com/docpilot-ai/docpilot) — AI docs that stay fresh*');
+    lines.push('*Powered by [DocPilot](https://github.com/goat-ai-claw/docpilot) — AI docs that stay fresh*');
     return lines.join('\n');
 }
 async function postComment(octokit, owner, repo, prNumber, analysis) {

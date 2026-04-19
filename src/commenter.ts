@@ -38,7 +38,7 @@ export function buildComment(analysis: AnalysisResult, prNumber: number): string
     lines.push('');
     lines.push('---');
     lines.push(
-      '*Powered by [DocPilot](https://github.com/docpilot-ai/docpilot) — AI docs that stay fresh*'
+      '*Powered by [DocPilot](https://github.com/goat-ai-claw/docpilot) — AI docs that stay fresh*'
     );
     return lines.join('\n');
   }
@@ -109,7 +109,7 @@ export function buildComment(analysis: AnalysisResult, prNumber: number): string
 
   lines.push('---');
   lines.push(
-    '*Powered by [DocPilot](https://github.com/docpilot-ai/docpilot) — AI docs that stay fresh*'
+    '*Powered by [DocPilot](https://github.com/goat-ai-claw/docpilot) — AI docs that stay fresh*'
   );
 
   return lines.join('\n');
