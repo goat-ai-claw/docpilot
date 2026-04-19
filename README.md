@@ -27,7 +27,7 @@ Animated walkthrough of a real [PR #1](https://github.com/goat-ai-claw/docpilot/
 
 **Step 1** — Add your OpenAI key as a GitHub secret named `OPENAI_API_KEY`.
 
-**Step 2** — Create `.github/workflows/docpilot.yml`:
+**Step 2** — Create `.github/workflows/docpilot.yml` for the default `suggest` mode:
 
 ```yaml
 name: DocPilot
@@ -38,10 +38,10 @@ on:
 
 jobs:
   docs:
+    if: ${{ secrets.OPENAI_API_KEY != '' }}
     runs-on: ubuntu-latest
     permissions:
-      contents: write      # needed for auto-update mode
-      pull-requests: write # needed to post comments
+      pull-requests: write # needed to post PR comments
     steps:
       - uses: actions/checkout@v4
       - uses: goat-ai-claw/docpilot@v1
@@ -49,7 +49,9 @@ jobs:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
 ```
 
-**Step 3** — Open a pull request. DocPilot posts a comment like this:
+This default setup keeps permissions narrow and skips safely when the OpenAI secret is unavailable.
+
+**Step 3** — Open a pull request. DocPilot comments when it detects likely documentation drift, so it stays quiet on no-impact PRs by default.
 
 > ⚠️ **DocPilot — Moderate documentation impact**
 >
@@ -67,6 +69,7 @@ jobs:
 | `model` | `gpt-4o-mini` | OpenAI model. Use `gpt-4o` for higher quality. |
 | `doc_paths` | `README.md,docs/,CHANGELOG.md` | Comma-separated files or directories to analyze. Directories end with `/`. |
 | `mode` | `suggest` | `suggest` posts a PR comment. `auto-update` commits suggestions to the PR branch. |
+| `comment_on_no_impact` | `false` | When `true`, keeps an all-clear PR comment even if DocPilot finds no docs drift. Default is quiet mode. |
 
 ## Outputs
 
@@ -101,7 +104,22 @@ jobs:
     doc_paths: 'README.md,docs/'
 ```
 
+For `auto-update`, add `contents: write` permission because DocPilot will commit changes back to the PR branch.
+
 In `auto-update` mode, DocPilot commits suggestions directly to the PR branch wrapped in review markers. Authors merge, edit, or discard them as needed.
+
+## Permissions and fork behavior
+
+- `suggest` mode needs `pull-requests: write`
+- `auto-update` mode needs `pull-requests: write` and `contents: write`
+- DocPilot is quiet by default when impact is `none`; set `comment_on_no_impact: 'true'` if you want explicit all-clear comments on every PR
+- On pull requests from forks, repository secrets like `OPENAI_API_KEY` are usually unavailable, so the recommended `if: ${{ secrets.OPENAI_API_KEY != '' }}` guard avoids noisy failures
+
+## Privacy and limitations
+
+- DocPilot sends pull request diffs and relevant documentation context to OpenAI for analysis
+- Do not enable it on repositories where that data must never leave GitHub
+- Like any LLM-powered reviewer, suggestions can be wrong — keep a human in the loop before merging doc changes
 
 ## Why not just use a code review bot or docs platform?
 

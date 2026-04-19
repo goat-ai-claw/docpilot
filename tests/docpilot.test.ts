@@ -1,4 +1,4 @@
-import { buildComment } from '../src/commenter';
+import { buildComment, shouldPostComment, syncComment } from '../src/commenter';
 import { parseDocPaths, truncate } from '../src/utils';
 import type { AnalysisResult } from '../src/analyzer';
 
@@ -87,6 +87,116 @@ describe('buildComment', () => {
     const comment = buildComment(analysis, 1);
     expect(comment).toContain('README issues found');
     expect(comment).toContain('Missing installation section');
+  });
+});
+
+describe('shouldPostComment', () => {
+  const noImpactAnalysis: AnalysisResult = {
+    summary: 'No docs drift detected',
+    docsNeedingUpdate: [],
+    changelogEntry: '',
+    readmeIssues: [],
+    overallImpact: 'none',
+  };
+
+  it('is quiet by default for no-impact analyses', () => {
+    expect(shouldPostComment(noImpactAnalysis, false)).toBe(false);
+  });
+
+  it('can opt in to no-impact comments', () => {
+    expect(shouldPostComment(noImpactAnalysis, true)).toBe(true);
+  });
+
+  it('still posts when docs need updates', () => {
+    expect(
+      shouldPostComment(
+        {
+          ...noImpactAnalysis,
+          overallImpact: 'moderate',
+          docsNeedingUpdate: [
+            {
+              file: 'README.md',
+              reason: 'New flag added',
+              suggestedChange: 'Document the new flag',
+              priority: 'high',
+            },
+          ],
+        },
+        false
+      )
+    ).toBe(true);
+  });
+});
+
+describe('syncComment', () => {
+  const noImpactAnalysis: AnalysisResult = {
+    summary: 'No docs drift detected',
+    docsNeedingUpdate: [],
+    changelogEntry: '',
+    readmeIssues: [],
+    overallImpact: 'none',
+  };
+
+  function createOctokitMock(existingBody?: string) {
+    return {
+      rest: {
+        issues: {
+          listComments: jest.fn().mockResolvedValue({
+            data: existingBody
+              ? [{ id: 42, body: existingBody }]
+              : [],
+          }),
+          createComment: jest.fn().mockResolvedValue({}),
+          updateComment: jest.fn().mockResolvedValue({}),
+          deleteComment: jest.fn().mockResolvedValue({}),
+        },
+      },
+    } as any;
+  }
+
+  it('does not create a comment for no-impact analyses by default', async () => {
+    const octokit = createOctokitMock();
+
+    await syncComment(octokit, 'goat-ai-claw', 'docpilot', 1, noImpactAnalysis, false);
+
+    expect(octokit.rest.issues.createComment).not.toHaveBeenCalled();
+    expect(octokit.rest.issues.updateComment).not.toHaveBeenCalled();
+    expect(octokit.rest.issues.deleteComment).not.toHaveBeenCalled();
+  });
+
+  it('deletes an existing DocPilot comment when a PR becomes no-impact', async () => {
+    const octokit = createOctokitMock('<!-- docpilot-v1 -->\nOld comment');
+
+    await syncComment(octokit, 'goat-ai-claw', 'docpilot', 1, noImpactAnalysis, false);
+
+    expect(octokit.rest.issues.deleteComment).toHaveBeenCalledWith({
+      owner: 'goat-ai-claw',
+      repo: 'docpilot',
+      comment_id: 42,
+    });
+    expect(octokit.rest.issues.createComment).not.toHaveBeenCalled();
+    expect(octokit.rest.issues.updateComment).not.toHaveBeenCalled();
+  });
+
+  it('creates a comment when impact is non-zero', async () => {
+    const octokit = createOctokitMock();
+    const analysis: AnalysisResult = {
+      ...noImpactAnalysis,
+      overallImpact: 'minor',
+      docsNeedingUpdate: [
+        {
+          file: 'README.md',
+          reason: 'New flag added',
+          suggestedChange: 'Document the new flag',
+          priority: 'medium',
+        },
+      ],
+    };
+
+    await syncComment(octokit, 'goat-ai-claw', 'docpilot', 1, analysis, false);
+
+    expect(octokit.rest.issues.createComment).toHaveBeenCalled();
+    expect(octokit.rest.issues.deleteComment).not.toHaveBeenCalled();
   });
 });
 

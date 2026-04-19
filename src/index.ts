@@ -1,7 +1,7 @@
 import * as core from '@actions/core';
 import { getOctokit } from '@actions/github';
 import { analyzeDiff } from './analyzer';
-import { postComment } from './commenter';
+import { syncComment } from './commenter';
 import { getPRContext, parseDocPaths, logInfo, logError } from './utils';
 
 async function getPRDiff(
@@ -146,8 +146,9 @@ async function run(): Promise<void> {
     const openaiApiKey = core.getInput('openai_api_key', { required: true });
     const githubToken = core.getInput('github_token', { required: true });
     const model = core.getInput('model') || 'gpt-4o-mini';
-    const docPathsInput = core.getInput('doc_paths') || 'README.md,docs/,CHANGELOG.md';
+    const docPaths = parseDocPaths(core.getInput('doc_paths') || 'README.md,docs/,CHANGELOG.md');
     const mode = core.getInput('mode') || 'suggest';
+    const commentOnNoImpact = (core.getInput('comment_on_no_impact') || 'false').toLowerCase() === 'true';
 
     if (mode !== 'suggest' && mode !== 'auto-update') {
       throw new Error(`Invalid mode "${mode}". Must be "suggest" or "auto-update".`);
@@ -155,11 +156,11 @@ async function run(): Promise<void> {
 
     const octokit = getOctokit(githubToken);
     const prContext = getPRContext();
-    const docPaths = parseDocPaths(docPathsInput);
 
     logInfo(`Running in "${mode}" mode on PR #${prContext.prNumber}`);
     logInfo(`Model: ${model}`);
     logInfo(`Watching doc paths: ${docPaths.join(', ')}`);
+    logInfo(`Comment on no impact: ${commentOnNoImpact}`);
 
     // Fetch PR metadata
     const { data: pr } = await octokit.rest.pulls.get({
@@ -224,14 +225,15 @@ async function run(): Promise<void> {
       );
     }
 
-    // Always post/update the PR comment
-    logInfo('Posting analysis comment on PR...');
-    await postComment(
+    // Keep PR comments high-signal: quiet by default when no docs drift is detected
+    logInfo('Synchronizing analysis comment on PR...');
+    await syncComment(
       octokit,
       prContext.owner,
       prContext.repo,
       prContext.prNumber,
-      analysis
+      analysis,
+      commentOnNoImpact
     );
 
     // Expose outputs

@@ -115,16 +115,19 @@ export function buildComment(analysis: AnalysisResult, prNumber: number): string
   return lines.join('\n');
 }
 
-export async function postComment(
+export function shouldPostComment(
+  analysis: AnalysisResult,
+  commentOnNoImpact: boolean
+): boolean {
+  return commentOnNoImpact || analysis.overallImpact !== 'none';
+}
+
+async function findExistingComment(
   octokit: ReturnType<typeof getOctokit>,
   owner: string,
   repo: string,
-  prNumber: number,
-  analysis: AnalysisResult
-): Promise<void> {
-  const body = buildComment(analysis, prNumber);
-
-  // Check for an existing DocPilot comment to update instead of creating a new one
+  prNumber: number
+) {
   const { data: comments } = await octokit.rest.issues.listComments({
     owner,
     repo,
@@ -132,7 +135,34 @@ export async function postComment(
     per_page: 100,
   });
 
-  const existing = comments.find(c => c.body?.includes(COMMENT_MARKER));
+  return comments.find((c: { body?: string | null }) => c.body?.includes(COMMENT_MARKER));
+}
+
+export async function syncComment(
+  octokit: ReturnType<typeof getOctokit>,
+  owner: string,
+  repo: string,
+  prNumber: number,
+  analysis: AnalysisResult,
+  commentOnNoImpact: boolean
+): Promise<void> {
+  const existing = await findExistingComment(octokit, owner, repo, prNumber);
+
+  if (!shouldPostComment(analysis, commentOnNoImpact)) {
+    if (existing) {
+      logInfo(`Deleting existing DocPilot comment (id: ${existing.id}) because impact is none`);
+      await octokit.rest.issues.deleteComment({
+        owner,
+        repo,
+        comment_id: existing.id,
+      });
+    } else {
+      logInfo('Skipping PR comment because impact is none and quiet mode is enabled');
+    }
+    return;
+  }
+
+  const body = buildComment(analysis, prNumber);
 
   if (existing) {
     logInfo(`Updating existing DocPilot comment (id: ${existing.id})`);

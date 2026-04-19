@@ -26,6 +26,10 @@ inputs:
     description: 'Operation mode: "suggest" posts a PR comment, "auto-update" commits changes directly to the PR branch'
     required: false
     default: 'suggest'
+  comment_on_no_impact:
+    description: 'Set to "true" to keep all-clear comments when no docs drift is detected. Default is quiet mode.'
+    required: false
+    default: 'false'
 
 outputs:
   impact:
