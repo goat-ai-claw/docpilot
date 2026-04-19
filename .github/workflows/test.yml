@@ -49,13 +49,22 @@ jobs:
       - name: Build
         run: npm run build:prod
 
+      - name: Check OpenAI key availability
+        id: openai-key
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          if [ -n "$OPENAI_API_KEY" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Run DocPilot on this PR
         uses: ./
-        if: ${{ secrets.OPENAI_API_KEY != '' }}
+        if: ${{ steps.openai-key.outputs.present == 'true' }}
         with:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           mode: suggest
           doc_paths: 'README.md,CHANGELOG.md'
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
