@@ -1,5 +1,11 @@
 import type { AnalysisResult } from '../src/analyzer';
-import { assertValidMode, buildReportBody, publishAnalysisResult } from '../src/publish';
+import {
+  assertValidMode,
+  assertValidFailOnImpact,
+  buildReportBody,
+  publishAnalysisResult,
+  shouldFailForImpact,
+} from '../src/publish';
 
 describe('assertValidMode', () => {
   it('accepts report mode', () => {
@@ -8,6 +14,33 @@ describe('assertValidMode', () => {
 
   it('rejects invalid modes', () => {
     expect(() => assertValidMode('comment-only')).toThrow('Invalid mode');
+  });
+});
+
+describe('assertValidFailOnImpact', () => {
+  it('accepts empty and known impact thresholds', () => {
+    expect(() => assertValidFailOnImpact('')).not.toThrow();
+    expect(() => assertValidFailOnImpact('moderate')).not.toThrow();
+  });
+
+  it('rejects invalid thresholds', () => {
+    expect(() => assertValidFailOnImpact('none')).toThrow('Invalid fail_on_impact');
+    expect(() => assertValidFailOnImpact('urgent')).toThrow('Invalid fail_on_impact');
+  });
+});
+
+describe('shouldFailForImpact', () => {
+  it('returns false when threshold is disabled', () => {
+    expect(shouldFailForImpact('major', '')).toBe(false);
+  });
+
+  it('returns true when impact meets the configured threshold', () => {
+    expect(shouldFailForImpact('moderate', 'moderate')).toBe(true);
+    expect(shouldFailForImpact('major', 'moderate')).toBe(true);
+  });
+
+  it('returns false when impact is below the configured threshold', () => {
+    expect(shouldFailForImpact('minor', 'moderate')).toBe(false);
   });
 });
 
@@ -113,5 +146,63 @@ describe('publishAnalysisResult', () => {
     );
     expect(syncCommentFn).toHaveBeenCalledWith({}, 'goat-ai-claw', 'docpilot', 12, analysis, false);
     expect(summaryWriteFn).not.toHaveBeenCalled();
+  });
+
+  it('marks the run failed when impact meets fail_on_impact threshold', async () => {
+    const syncCommentFn = jest.fn().mockResolvedValue(undefined);
+    const autoUpdateDocsFn = jest.fn().mockResolvedValue(undefined);
+    const summaryWriteFn = jest.fn().mockResolvedValue(undefined);
+    const setFailedFn = jest.fn();
+
+    await publishAnalysisResult({
+      mode: 'report',
+      octokit: {} as any,
+      owner: 'goat-ai-claw',
+      repo: 'docpilot',
+      prNumber: 12,
+      headRef: 'feature/report-mode',
+      analysis,
+      commentOnNoImpact: false,
+      autoUpdateDocsFn,
+      syncCommentFn,
+      summaryWriteFn,
+      failOnImpact: 'moderate',
+      setFailedFn,
+    });
+
+    expect(summaryWriteFn).toHaveBeenCalledTimes(1);
+    expect(setFailedFn).toHaveBeenCalledWith(
+      'DocPilot detected moderate documentation impact, meeting the fail_on_impact threshold of moderate.'
+    );
+  });
+
+  it('still marks the run failed in auto-update mode when impact meets the threshold', async () => {
+    const syncCommentFn = jest.fn().mockResolvedValue(undefined);
+    const autoUpdateDocsFn = jest.fn().mockResolvedValue(undefined);
+    const summaryWriteFn = jest.fn().mockResolvedValue(undefined);
+    const setFailedFn = jest.fn();
+
+    await publishAnalysisResult({
+      mode: 'auto-update',
+      octokit: {} as any,
+      owner: 'goat-ai-claw',
+      repo: 'docpilot',
+      prNumber: 12,
+      headRef: 'feature/report-mode',
+      analysis,
+      commentOnNoImpact: false,
+      autoUpdateDocsFn,
+      syncCommentFn,
+      summaryWriteFn,
+      failOnImpact: 'minor',
+      setFailedFn,
+    });
+
+    expect(autoUpdateDocsFn).toHaveBeenCalledTimes(1);
+    expect(syncCommentFn).toHaveBeenCalledTimes(1);
+    expect(summaryWriteFn).not.toHaveBeenCalled();
+    expect(setFailedFn).toHaveBeenCalledWith(
+      'DocPilot detected moderate documentation impact, meeting the fail_on_impact threshold of minor.'
+    );
   });
 });

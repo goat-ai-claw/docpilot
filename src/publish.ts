@@ -5,6 +5,10 @@ import { syncComment } from './commenter';
 import { logInfo, logWarning } from './utils';
 
 export type DocPilotMode = 'suggest' | 'auto-update' | 'report';
+export type FailOnImpact = '' | Exclude<AnalysisResult['overallImpact'], 'none'>;
+
+const IMPACT_ORDER: AnalysisResult['overallImpact'][] = ['none', 'minor', 'moderate', 'major'];
+const FAILABLE_IMPACTS: FailOnImpact[] = ['', 'minor', 'moderate', 'major'];
 
 type AutoUpdateDocsFn = (
   octokit: ReturnType<typeof getOctokit>,
@@ -24,6 +28,7 @@ type SyncCommentFn = (
 ) => Promise<void>;
 
 type SummaryWriteFn = (markdown: string) => Promise<void>;
+type SetFailedFn = (message: string) => void;
 
 export interface PublishAnalysisOptions {
   mode: DocPilotMode;
@@ -34,15 +39,36 @@ export interface PublishAnalysisOptions {
   headRef: string;
   analysis: AnalysisResult;
   commentOnNoImpact: boolean;
+  failOnImpact?: FailOnImpact;
   autoUpdateDocsFn: AutoUpdateDocsFn;
   syncCommentFn?: SyncCommentFn;
   summaryWriteFn?: SummaryWriteFn;
+  setFailedFn?: SetFailedFn;
 }
 
 export function assertValidMode(mode: string): asserts mode is DocPilotMode {
   if (mode !== 'suggest' && mode !== 'auto-update' && mode !== 'report') {
     throw new Error(`Invalid mode "${mode}". Must be "report", "suggest", or "auto-update".`);
   }
+}
+
+export function assertValidFailOnImpact(value: string): asserts value is FailOnImpact {
+  if (!FAILABLE_IMPACTS.includes(value as FailOnImpact)) {
+    throw new Error(
+      `Invalid fail_on_impact "${value}". Must be empty, "minor", "moderate", or "major".`
+    );
+  }
+}
+
+export function shouldFailForImpact(
+  impact: AnalysisResult['overallImpact'],
+  threshold: FailOnImpact
+): boolean {
+  if (threshold === '') {
+    return false;
+  }
+
+  return IMPACT_ORDER.indexOf(impact) >= IMPACT_ORDER.indexOf(threshold);
 }
 
 export function buildReportBody(analysis: AnalysisResult): string {
@@ -104,9 +130,11 @@ export async function publishAnalysisResult({
   headRef,
   analysis,
   commentOnNoImpact,
+  failOnImpact = '',
   autoUpdateDocsFn,
   syncCommentFn = syncComment,
   summaryWriteFn = defaultSummaryWrite,
+  setFailedFn = core.setFailed,
 }: PublishAnalysisOptions): Promise<void> {
   if (mode === 'auto-update' && analysis.docsNeedingUpdate.length > 0) {
     logInfo(`Auto-update mode: committing suggestions to branch "${headRef}"...`);
@@ -127,9 +155,14 @@ export async function publishAnalysisResult({
     const reportBody = buildReportBody(analysis);
     logInfo(`Report summary:\n${reportBody}`);
     await summaryWriteFn(reportBody);
-    return;
+  } else {
+    logInfo('Synchronizing analysis comment on PR...');
+    await syncCommentFn(octokit, owner, repo, prNumber, analysis, commentOnNoImpact);
   }
 
-  logInfo('Synchronizing analysis comment on PR...');
-  await syncCommentFn(octokit, owner, repo, prNumber, analysis, commentOnNoImpact);
+  if (shouldFailForImpact(analysis.overallImpact, failOnImpact)) {
+    setFailedFn(
+      `DocPilot detected ${analysis.overallImpact} documentation impact, meeting the fail_on_impact threshold of ${failOnImpact}.`
+    );
+  }
 }

@@ -26,6 +26,10 @@ inputs:
     description: 'Operation mode: "report" writes a step summary without PR writes, "suggest" posts a PR comment, and "auto-update" commits changes directly to the PR branch'
     required: false
     default: 'suggest'
+  fail_on_impact:
+    description: 'Optional quality gate. When set to minor, moderate, or major, the action marks the run failed if the detected documentation impact meets or exceeds that level.'
+    required: false
+    default: ''
   comment_on_no_impact:
     description: 'Set to "true" to keep all-clear comments when no docs drift is detected. Default is quiet mode.'
     required: false

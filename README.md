@@ -73,6 +73,7 @@ This default setup keeps permissions narrow, skips safely when the OpenAI secret
 | `model` | `gpt-4o-mini` | OpenAI model. Use `gpt-4o` for higher quality. |
 | `doc_paths` | `README.md,docs/,CHANGELOG.md` | Comma-separated files or directories to analyze. Directories end with `/`. |
 | `mode` | `suggest` | `report` writes a step summary only, `suggest` posts a PR comment, and `auto-update` commits suggestions to the PR branch. |
+| `fail_on_impact` | — | Optional quality gate. Set to `minor`, `moderate`, or `major` to fail the workflow when DocPilot detects that impact level or higher. |
 | `comment_on_no_impact` | `false` | When `true`, keeps an all-clear PR comment even if DocPilot finds no docs drift. Default is quiet mode. |
 
 ## Outputs
@@ -101,13 +102,10 @@ Use `suggest` when you want inline PR comments. Grant `pull-requests: write` for
   id: docpilot
   with:
     openai_api_key: ${{ secrets.OPENAI_API_KEY }}
-
-- name: Block merge on major doc impact
-  if: steps.docpilot.outputs.impact == 'major'
-  run: |
-    echo "Major documentation impact detected. Please update docs before merging."
-    exit 1
+    fail_on_impact: major
 ```
+
+`fail_on_impact` works in every mode, so teams can start in read-only `report` mode and still block merges when documentation drift is severe enough.
 
 ## Example: Auto-update mode
 

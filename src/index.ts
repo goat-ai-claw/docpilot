@@ -2,7 +2,7 @@ import * as core from '@actions/core';
 import { getOctokit } from '@actions/github';
 import { analyzeDiff } from './analyzer';
 import { getPRContext, parseDocPaths, logInfo, logError } from './utils';
-import { assertValidMode, publishAnalysisResult } from './publish';
+import { assertValidMode, assertValidFailOnImpact, publishAnalysisResult } from './publish';
 
 async function getPRDiff(
   octokit: ReturnType<typeof getOctokit>,
@@ -148,9 +148,11 @@ async function run(): Promise<void> {
     const model = core.getInput('model') || 'gpt-4o-mini';
     const docPaths = parseDocPaths(core.getInput('doc_paths') || 'README.md,docs/,CHANGELOG.md');
     const mode = core.getInput('mode') || 'suggest';
+    const failOnImpact = (core.getInput('fail_on_impact') || '').toLowerCase();
     const commentOnNoImpact = (core.getInput('comment_on_no_impact') || 'false').toLowerCase() === 'true';
 
     assertValidMode(mode);
+    assertValidFailOnImpact(failOnImpact);
 
     const octokit = getOctokit(githubToken);
     const prContext = getPRContext();
@@ -158,6 +160,7 @@ async function run(): Promise<void> {
     logInfo(`Running in "${mode}" mode on PR #${prContext.prNumber}`);
     logInfo(`Model: ${model}`);
     logInfo(`Watching doc paths: ${docPaths.join(', ')}`);
+    logInfo(`Fail on impact threshold: ${failOnImpact || 'disabled'}`);
     logInfo(`Comment on no impact: ${commentOnNoImpact}`);
 
     // Fetch PR metadata
@@ -217,6 +220,7 @@ async function run(): Promise<void> {
       headRef: prContext.headRef,
       analysis,
       commentOnNoImpact,
+      failOnImpact,
       autoUpdateDocsFn: autoUpdateDocs,
     });
 

@@ -41559,13 +41559,16 @@ async function run() {
         const model = core.getInput('model') || 'gpt-4o-mini';
         const docPaths = (0, utils_1.parseDocPaths)(core.getInput('doc_paths') || 'README.md,docs/,CHANGELOG.md');
         const mode = core.getInput('mode') || 'suggest';
+        const failOnImpact = (core.getInput('fail_on_impact') || '').toLowerCase();
         const commentOnNoImpact = (core.getInput('comment_on_no_impact') || 'false').toLowerCase() === 'true';
         (0, publish_1.assertValidMode)(mode);
+        (0, publish_1.assertValidFailOnImpact)(failOnImpact);
         const octokit = (0, github_1.getOctokit)(githubToken);
         const prContext = (0, utils_1.getPRContext)();
         (0, utils_1.logInfo)(`Running in "${mode}" mode on PR #${prContext.prNumber}`);
         (0, utils_1.logInfo)(`Model: ${model}`);
         (0, utils_1.logInfo)(`Watching doc paths: ${docPaths.join(', ')}`);
+        (0, utils_1.logInfo)(`Fail on impact threshold: ${failOnImpact || 'disabled'}`);
         (0, utils_1.logInfo)(`Comment on no impact: ${commentOnNoImpact}`);
         // Fetch PR metadata
         const { data: pr } = await octokit.rest.pulls.get({
@@ -41600,6 +41603,7 @@ async function run() {
             headRef: prContext.headRef,
             analysis,
             commentOnNoImpact,
+            failOnImpact,
             autoUpdateDocsFn: autoUpdateDocs,
         });
         // Expose outputs
@@ -41724,15 +41728,30 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.assertValidMode = assertValidMode;
+exports.assertValidFailOnImpact = assertValidFailOnImpact;
+exports.shouldFailForImpact = shouldFailForImpact;
 exports.buildReportBody = buildReportBody;
 exports.publishAnalysisResult = publishAnalysisResult;
 const core = __importStar(__nccwpck_require__(7484));
 const commenter_1 = __nccwpck_require__(2069);
 const utils_1 = __nccwpck_require__(1798);
+const IMPACT_ORDER = ['none', 'minor', 'moderate', 'major'];
+const FAILABLE_IMPACTS = ['', 'minor', 'moderate', 'major'];
 function assertValidMode(mode) {
     if (mode !== 'suggest' && mode !== 'auto-update' && mode !== 'report') {
         throw new Error(`Invalid mode "${mode}". Must be "report", "suggest", or "auto-update".`);
     }
+}
+function assertValidFailOnImpact(value) {
+    if (!FAILABLE_IMPACTS.includes(value)) {
+        throw new Error(`Invalid fail_on_impact "${value}". Must be empty, "minor", "moderate", or "major".`);
+    }
+}
+function shouldFailForImpact(impact, threshold) {
+    if (threshold === '') {
+        return false;
+    }
+    return IMPACT_ORDER.indexOf(impact) >= IMPACT_ORDER.indexOf(threshold);
 }
 function buildReportBody(analysis) {
     const lines = [
@@ -41776,7 +41795,7 @@ async function defaultSummaryWrite(markdown) {
         (0, utils_1.logWarning)(`Failed to write GitHub step summary: ${String(error)}`);
     }
 }
-async function publishAnalysisResult({ mode, octokit, owner, repo, prNumber, headRef, analysis, commentOnNoImpact, autoUpdateDocsFn, syncCommentFn = commenter_1.syncComment, summaryWriteFn = defaultSummaryWrite, }) {
+async function publishAnalysisResult({ mode, octokit, owner, repo, prNumber, headRef, analysis, commentOnNoImpact, failOnImpact = '', autoUpdateDocsFn, syncCommentFn = commenter_1.syncComment, summaryWriteFn = defaultSummaryWrite, setFailedFn = core.setFailed, }) {
     if (mode === 'auto-update' && analysis.docsNeedingUpdate.length > 0) {
         (0, utils_1.logInfo)(`Auto-update mode: committing suggestions to branch "${headRef}"...`);
         await autoUpdateDocsFn(octokit, owner, repo, headRef, analysis.docsNeedingUpdate.map(d => ({
@@ -41789,10 +41808,14 @@ async function publishAnalysisResult({ mode, octokit, owner, repo, prNumber, hea
         const reportBody = buildReportBody(analysis);
         (0, utils_1.logInfo)(`Report summary:\n${reportBody}`);
         await summaryWriteFn(reportBody);
-        return;
     }
-    (0, utils_1.logInfo)('Synchronizing analysis comment on PR...');
-    await syncCommentFn(octokit, owner, repo, prNumber, analysis, commentOnNoImpact);
+    else {
+        (0, utils_1.logInfo)('Synchronizing analysis comment on PR...');
+        await syncCommentFn(octokit, owner, repo, prNumber, analysis, commentOnNoImpact);
+    }
+    if (shouldFailForImpact(analysis.overallImpact, failOnImpact)) {
+        setFailedFn(`DocPilot detected ${analysis.overallImpact} documentation impact, meeting the fail_on_impact threshold of ${failOnImpact}.`);
+    }
 }
 
 
