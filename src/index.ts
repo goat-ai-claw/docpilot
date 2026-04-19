@@ -1,7 +1,15 @@
 import * as core from '@actions/core';
 import { getOctokit } from '@actions/github';
 import { analyzeDiff } from './analyzer';
-import { getPRContext, parseDocPaths, logInfo, logError, DEFAULT_DOC_PATHS, prioritizeDocFiles } from './utils';
+import {
+  DEFAULT_DOC_PATHS,
+  getPRContext,
+  logError,
+  logInfo,
+  parseDocPaths,
+  prioritizeDocFiles,
+  resolveDocPathsForCollection,
+} from './utils';
 import { assertValidMode, assertValidFailOnImpact, publishAnalysisResult } from './publish';
 
 async function getPRDiff(
@@ -67,12 +75,14 @@ async function collectDocFiles(
   owner: string,
   repo: string,
   headSha: string,
-  docPaths: string[]
+  docPaths: string[],
+  allowAutoDiscovery: boolean
 ): Promise<Record<string, string>> {
   const allFiles = await getRepoTree(octokit, owner, repo, headSha);
   const docs: Record<string, string> = {};
+  const effectiveDocPaths = resolveDocPathsForCollection(allFiles, docPaths, allowAutoDiscovery);
 
-  for (const docPath of docPaths) {
+  for (const docPath of effectiveDocPaths) {
     if (docPath.endsWith('/')) {
       // Directory — collect all markdown/text files inside
       const matches = allFiles.filter(
@@ -146,7 +156,9 @@ async function run(): Promise<void> {
     const openaiApiKey = core.getInput('openai_api_key', { required: true });
     const githubToken = core.getInput('github_token', { required: true });
     const model = core.getInput('model') || 'gpt-4o-mini';
-    const docPaths = parseDocPaths(core.getInput('doc_paths') || DEFAULT_DOC_PATHS);
+    const docPathsInput = core.getInput('doc_paths');
+    const docPaths = parseDocPaths(docPathsInput || DEFAULT_DOC_PATHS);
+    const allowAutoDiscovery = docPathsInput.trim().length === 0;
     const mode = core.getInput('mode') || 'suggest';
     const failOnImpact = (core.getInput('fail_on_impact') || '').toLowerCase();
     const commentOnNoImpact = (core.getInput('comment_on_no_impact') || 'false').toLowerCase() === 'true';
@@ -194,7 +206,8 @@ async function run(): Promise<void> {
       prContext.owner,
       prContext.repo,
       prContext.headSha,
-      docPaths
+      docPaths,
+      allowAutoDiscovery
     );
     logInfo(`Found ${Object.keys(existingDocs).length} doc file(s): ${Object.keys(existingDocs).join(', ') || 'none'}`);
 

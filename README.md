@@ -8,7 +8,7 @@ DocPilot is a lightweight GitHub Action that turns pull requests into a document
 
 - **Purpose-built to catch missing docs updates in pull requests** — not another generic AI review bot
 - **Runs in your existing PR workflow** — no new platform, dashboard, or docs migration
-- **Works with the docs you already have** — `README.md`, `docs/`, `CHANGELOG.md`, release notes
+- **Works with the docs you already have** — `README.md`, `docs/`, changelogs, upgrade guides, and high-signal doc-rich directories like `plugins/` or `elements/`
 - **Starts safely** — use read-only `report` mode first, then turn on comments or auto-updates later
 - **Cheap + transparent** — BYO OpenAI key, typically ~`$0.001–$0.005` per PR
 
@@ -70,7 +70,7 @@ This default setup keeps permissions narrow, skips safely when the OpenAI secret
 
 **Step 3** — Open a pull request. In `report` mode, DocPilot writes a GitHub Actions step summary and sets outputs without posting PR comments or committing changes.
 
-By default, DocPilot scans `README.md`, `docs/`, `CHANGELOG.md`, and `UPGRADING.md`. If your repo keeps release notes somewhere else (for example `docs/changelog/`), override `doc_paths` explicitly.
+By default, DocPilot scans `README.md`, `docs/`, `CHANGELOG.md`, and `UPGRADING.md`, then auto-discovers up to 3 extra top-level doc-rich directories when you keep the defaults (for example `plugins/` or `elements/`). If your repo keeps release notes somewhere else or you want exact control, override `doc_paths` explicitly.
 
 **Step 4** — When you want inline PR feedback, switch to `mode: suggest` and grant `pull-requests: write`.
 
@@ -88,7 +88,7 @@ By default, DocPilot scans `README.md`, `docs/`, `CHANGELOG.md`, and `UPGRADING.
 | `openai_api_key` | — | **Required.** Your OpenAI API key. Store as a GitHub secret. |
 | `github_token` | `github.token` | GitHub token for posting comments and reading PRs. |
 | `model` | `gpt-4o-mini` | OpenAI model. Use `gpt-4o` for higher quality. |
-| `doc_paths` | `README.md,docs/,CHANGELOG.md,UPGRADING.md` | Comma-separated files or directories to analyze. Directories end with `/`. Defaults cover the common README/docs/changelog/upgrade-guide surfaces. |
+| `doc_paths` | `README.md,docs/,CHANGELOG.md,UPGRADING.md` | Comma-separated files or directories to analyze. Directories end with `/`. With the defaults, DocPilot can also auto-discover up to 3 extra top-level doc-rich directories; set `doc_paths` explicitly when you want exact control. |
 | `mode` | `suggest` | `report` gives you a safe trial run, `suggest` posts a PR comment, and `auto-update` commits suggestions to the PR branch. |
 | `fail_on_impact` | — | Optional quality gate. Set to `minor`, `moderate`, or `major` to fail the workflow when DocPilot detects that impact level or higher. |
 | `comment_on_no_impact` | `false` | When `true`, keeps an all-clear PR comment even if DocPilot finds no documentation changes are needed. Default is quiet mode. |

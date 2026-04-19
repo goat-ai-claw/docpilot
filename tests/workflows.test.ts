@@ -67,6 +67,14 @@ describe('workflow definitions', () => {
     }
   });
 
+  it('leaves doc_paths blank in action metadata so runtime can detect the implicit default behavior', () => {
+    const actionDefinition = fs.readFileSync(path.join(repoRoot, 'action.yml'), 'utf8');
+    const docPathsBlock = actionDefinition.match(/doc_paths:\n(?:\s+.+\n){0,4}/)?.[0] ?? '';
+
+    expect(docPathsBlock).toContain("default: ''");
+    expect(docPathsBlock).toContain('built-in default');
+  });
+
   it('documents the fork-safe secret guard pattern in README examples', () => {
     const readme = fs.readFileSync(path.join(repoRoot, 'README.md'), 'utf8');
 

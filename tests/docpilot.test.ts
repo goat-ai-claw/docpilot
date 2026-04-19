@@ -1,5 +1,12 @@
 import { buildComment, shouldPostComment, syncComment } from '../src/commenter';
-import { DEFAULT_DOC_PATHS, parseDocPaths, prioritizeDocFiles, truncate } from '../src/utils';
+import {
+  DEFAULT_DOC_PATHS,
+  expandDocPathsWithAutoDiscovery,
+  parseDocPaths,
+  prioritizeDocFiles,
+  resolveDocPathsForCollection,
+  truncate,
+} from '../src/utils';
 import type { AnalysisResult } from '../src/analyzer';
 
 describe('buildComment', () => {
@@ -224,6 +231,82 @@ describe('parseDocPaths', () => {
 
   it('filters empty strings', () => {
     expect(parseDocPaths('README.md,,docs/')).toEqual(['README.md', 'docs/']);
+  });
+});
+
+describe('expandDocPathsWithAutoDiscovery', () => {
+  it('auto-discovers high-signal top-level doc directories when defaults are in use', () => {
+    const allFiles = [
+      'README.md',
+      'docs/getting-started.md',
+      'plugins/README.md',
+      'plugins/abnormal_security/help.md',
+      'plugins/abuseipdb/help.md',
+      'elements/README.md',
+      'elements/pf-alert/docs/pf-alert.md',
+      'elements/pf-accordion/docs/pf-accordion.md',
+      'src/index.ts',
+    ];
+
+    expect(expandDocPathsWithAutoDiscovery(allFiles, parseDocPaths(DEFAULT_DOC_PATHS))).toEqual([
+      'README.md',
+      'docs/',
+      'CHANGELOG.md',
+      'UPGRADING.md',
+      'plugins/',
+      'elements/',
+    ]);
+  });
+
+  it('does not auto-discover ignored code-centric directories', () => {
+    const allFiles = [
+      'README.md',
+      'src/README.md',
+      'src/guide.md',
+      'src/migration.md',
+      'tests/help.md',
+      'tests/README.md',
+      'scripts/changelog.md',
+    ];
+
+    expect(expandDocPathsWithAutoDiscovery(allFiles, parseDocPaths(DEFAULT_DOC_PATHS))).toEqual([
+      'README.md',
+      'docs/',
+      'CHANGELOG.md',
+      'UPGRADING.md',
+    ]);
+  });
+
+  it('respects custom doc_paths and skips auto-discovery outside the defaults', () => {
+    const allFiles = [
+      'README.md',
+      'plugins/README.md',
+      'plugins/example/help.md',
+      'plugins/example/guide.md',
+    ];
+
+    expect(expandDocPathsWithAutoDiscovery(allFiles, ['README.md', 'handbook/'])).toEqual([
+      'README.md',
+      'handbook/',
+    ]);
+  });
+});
+
+describe('resolveDocPathsForCollection', () => {
+  it('skips auto-discovery when doc_paths was explicitly configured, even if the value matches the defaults', () => {
+    const allFiles = [
+      'README.md',
+      'plugins/README.md',
+      'plugins/abnormal_security/help.md',
+      'plugins/abuseipdb/help.md',
+    ];
+
+    expect(resolveDocPathsForCollection(allFiles, parseDocPaths(DEFAULT_DOC_PATHS), false)).toEqual([
+      'README.md',
+      'docs/',
+      'CHANGELOG.md',
+      'UPGRADING.md',
+    ]);
   });
 });
 

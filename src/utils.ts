@@ -69,6 +69,137 @@ const DEPRIORITIZED_DOC_SEGMENTS = new Set([
   'templates',
   'generated',
 ]);
+const AUTO_DISCOVERY_MAX_DIRECTORIES = 3;
+const AUTO_DISCOVERY_MIN_DOC_FILES = 3;
+const AUTO_DISCOVERY_MIN_SCORE = 120;
+const AUTO_DISCOVERY_IGNORED_DIRECTORIES = new Set([
+  'src',
+  'lib',
+  'test',
+  'tests',
+  'spec',
+  'specs',
+  'scripts',
+  'script',
+  'dist',
+  'build',
+  'bin',
+  'vendor',
+  'node_modules',
+  'coverage',
+  'assets',
+  'static',
+  'public',
+]);
+const AUTO_DISCOVERY_MARKERS = new Map<string, number>([
+  ['readme', 80],
+  ['help', 80],
+  ['changelog', 75],
+  ['history', 72],
+  ['changes', 70],
+  ['release', 68],
+  ['releasenotes', 68],
+  ['upgrade', 66],
+  ['upgrading', 66],
+  ['migration', 66],
+  ['migrating', 66],
+  ['docs', 56],
+  ['documentation', 56],
+  ['guide', 52],
+  ['guides', 52],
+  ['tutorial', 50],
+  ['tutorials', 50],
+  ['reference', 46],
+  ['references', 46],
+  ['faq', 44],
+]);
+
+function scoreAutoDiscoveredDocPath(path: string): number {
+  const rawSegments = getRawDocSegments(path);
+  const segments = rawSegments.map(normalizeDocSegment).filter(Boolean);
+  let score = 0;
+
+  for (const segment of segments) {
+    for (const [marker, markerScore] of AUTO_DISCOVERY_MARKERS) {
+      if (segment === marker) {
+        score += markerScore;
+      } else if (segment.startsWith(marker) || segment.endsWith(marker)) {
+        score += Math.max(20, markerScore - 25);
+      }
+    }
+  }
+
+  const rawBasename = rawSegments[rawSegments.length - 1]?.toLowerCase() ?? '';
+  if (rawBasename.startsWith('readme.') || rawBasename.startsWith('help.')) {
+    score += 55;
+  }
+
+  if (rawBasename.startsWith('.') || rawBasename.startsWith('_')) {
+    score -= 20;
+  }
+
+  return score;
+}
+
+function usesDefaultDocPaths(docPaths: string[]): boolean {
+  const defaults = parseDocPaths(DEFAULT_DOC_PATHS);
+  return docPaths.length === defaults.length && docPaths.every((path, index) => path === defaults[index]);
+}
+
+export function expandDocPathsWithAutoDiscovery(allFiles: string[], docPaths: string[]): string[] {
+  if (!usesDefaultDocPaths(docPaths)) {
+    return [...docPaths];
+  }
+
+  const configuredDirectories = new Set(docPaths.filter(path => path.endsWith('/')));
+  const candidates = new Map<string, { docCount: number; score: number }>();
+
+  for (const filePath of allFiles) {
+    if (!isSupportedDocFile(filePath) || !filePath.includes('/')) {
+      continue;
+    }
+
+    const topLevelDirectory = filePath.split('/')[0];
+    const normalizedTopLevelDirectory = topLevelDirectory.toLowerCase();
+    if (
+      !topLevelDirectory ||
+      topLevelDirectory.startsWith('.') ||
+      configuredDirectories.has(`${topLevelDirectory}/`) ||
+      AUTO_DISCOVERY_IGNORED_DIRECTORIES.has(normalizedTopLevelDirectory)
+    ) {
+      continue;
+    }
+
+    const candidate = candidates.get(topLevelDirectory) ?? { docCount: 0, score: 0 };
+    candidate.docCount += 1;
+    candidate.score += scoreAutoDiscoveredDocPath(filePath);
+    candidates.set(topLevelDirectory, candidate);
+  }
+
+  const discoveredDirectories = [...candidates.entries()]
+    .filter(([, candidate]) => candidate.docCount >= AUTO_DISCOVERY_MIN_DOC_FILES && candidate.score >= AUTO_DISCOVERY_MIN_SCORE)
+    .sort((left, right) => {
+      const scoreDifference = right[1].score - left[1].score;
+      if (scoreDifference !== 0) return scoreDifference;
+
+      const countDifference = right[1].docCount - left[1].docCount;
+      if (countDifference !== 0) return countDifference;
+
+      return left[0].localeCompare(right[0]);
+    })
+    .slice(0, AUTO_DISCOVERY_MAX_DIRECTORIES)
+    .map(([directory]) => `${directory}/`);
+
+  return [...docPaths, ...discoveredDirectories];
+}
+
+export function resolveDocPathsForCollection(
+  allFiles: string[],
+  docPaths: string[],
+  allowAutoDiscovery: boolean = true
+): string[] {
+  return allowAutoDiscovery ? expandDocPathsWithAutoDiscovery(allFiles, docPaths) : [...docPaths];
+}
 
 function normalizeDocSegment(segment: string): string {
   return segment.toLowerCase().replace(/\.[^.]+$/, '').replace(/[^a-z0-9]+/g, '');
