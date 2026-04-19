@@ -2,18 +2,21 @@
 
 [![CI](https://github.com/goat-ai-claw/docpilot/actions/workflows/ci.yml/badge.svg)](https://github.com/goat-ai-claw/docpilot/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) [![GitHub stars](https://img.shields.io/github/stars/goat-ai-claw/docpilot?style=social)](https://github.com/goat-ai-claw/docpilot/stargazers)
 
-**Catch documentation drift before merge.**
+**Catch missing README, docs, and changelog updates before merge.**
 
-DocPilot is a lightweight GitHub Action that checks pull requests for missing README, docs, and changelog updates — then drafts suggestions right in GitHub.
+DocPilot is a lightweight GitHub Action that turns pull requests into a documentation gate. It checks pull requests for missing README, docs, and changelog updates — then drafts suggestions right in GitHub.
 
-- **Purpose-built for docs drift** — not another generic AI review bot
+- **Purpose-built to catch missing docs updates in pull requests** — not another generic AI review bot
 - **Runs in your existing PR workflow** — no new platform, dashboard, or docs migration
 - **Works with the docs you already have** — `README.md`, `docs/`, `CHANGELOG.md`, release notes
+- **Starts safely** — use read-only `report` mode first, then turn on comments or auto-updates later
 - **Cheap + transparent** — BYO OpenAI key, typically ~`$0.001–$0.005` per PR
 
 ## Why DocPilot
 
-Documentation drift happens when code changes but the docs do not. A CLI flag gets renamed, a config key changes, a feature ships — and the README still describes the old behavior. Code review catches bugs; DocPilot catches docs debt before merge.
+Most teams do not need a new docs platform. They need a guardrail in pull requests that answers one release-hygiene question before merge: **did this change also require a README, docs, or changelog update?**
+
+DocPilot is built for that narrow job. A CLI flag gets renamed, a config key changes, an API response changes, or a feature ships — and DocPilot flags the missing docs work while the PR is still open.
 
 ## See it in action
 
@@ -23,7 +26,7 @@ Animated walkthrough of a real [PR #1](https://github.com/goat-ai-claw/docpilot/
 
 [![DocPilot PR comment screenshot](assets/docpilot-demo-pr-comment.png)](https://github.com/goat-ai-claw/docpilot/pull/1)
 
-## Quickstart
+## Quickstart: start with a safe PR documentation gate
 
 **Step 1** — Add your OpenAI key as a GitHub secret named `OPENAI_API_KEY`.
 
@@ -63,7 +66,7 @@ jobs:
           mode: report
 ```
 
-This default setup keeps permissions narrow, skips safely when the OpenAI secret is unavailable, and lets teams evaluate DocPilot before granting write access without relying on the invalid `secrets.*`-inside-`if:` pattern that GitHub rejects.
+This default setup keeps permissions narrow, skips safely when the OpenAI secret is unavailable, and lets teams evaluate a PR documentation gate before granting write access without relying on the invalid `secrets.*`-inside-`if:` pattern that GitHub rejects.
 
 **Step 3** — Open a pull request. In `report` mode, DocPilot writes a GitHub Actions step summary and sets outputs without posting PR comments or committing changes.
 
@@ -84,9 +87,9 @@ This default setup keeps permissions narrow, skips safely when the OpenAI secret
 | `github_token` | `github.token` | GitHub token for posting comments and reading PRs. |
 | `model` | `gpt-4o-mini` | OpenAI model. Use `gpt-4o` for higher quality. |
 | `doc_paths` | `README.md,docs/,CHANGELOG.md` | Comma-separated files or directories to analyze. Directories end with `/`. |
-| `mode` | `suggest` | `report` writes a step summary only, `suggest` posts a PR comment, and `auto-update` commits suggestions to the PR branch. |
+| `mode` | `suggest` | `report` gives you a safe trial run, `suggest` posts a PR comment, and `auto-update` commits suggestions to the PR branch. |
 | `fail_on_impact` | — | Optional quality gate. Set to `minor`, `moderate`, or `major` to fail the workflow when DocPilot detects that impact level or higher. |
-| `comment_on_no_impact` | `false` | When `true`, keeps an all-clear PR comment even if DocPilot finds no docs drift. Default is quiet mode. |
+| `comment_on_no_impact` | `false` | When `true`, keeps an all-clear PR comment even if DocPilot finds no documentation changes are needed. Default is quiet mode. |
 
 ## Outputs
 
@@ -96,7 +99,7 @@ This default setup keeps permissions narrow, skips safely when the OpenAI secret
 | `docs_updated` | Number of files flagged for updates |
 | `summary` | One-line summary of the PR's documentation impact |
 
-## Example: Suggest mode PR comments
+## Example: Suggest mode for PR comments
 
 ```yaml
 - uses: goat-ai-claw/docpilot@v1
@@ -105,9 +108,9 @@ This default setup keeps permissions narrow, skips safely when the OpenAI secret
     mode: suggest
 ```
 
-Use `suggest` when you want inline PR comments. Grant `pull-requests: write` for this mode.
+Use `suggest` when you want PR comments that call out missing README/docs/changelog work. Grant `pull-requests: write` for this mode.
 
-## Example: Gate merges on major doc impact
+## Example: Block merges on major documentation impact
 
 ```yaml
 - uses: goat-ai-claw/docpilot@v1
@@ -117,7 +120,7 @@ Use `suggest` when you want inline PR comments. Grant `pull-requests: write` for
     fail_on_impact: major
 ```
 
-`fail_on_impact` works in every mode, so teams can start in read-only `report` mode and still block merges when documentation drift is severe enough.
+`fail_on_impact` works in every mode, so teams can start in read-only `report` mode and still block merges when the documentation impact is severe enough.
 
 ## Example: Auto-update mode
 
@@ -152,12 +155,12 @@ In `auto-update` mode, DocPilot commits suggestions directly to the PR branch wr
 
 | Option | Best for | Tradeoff |
 |--------|----------|----------|
-| **DocPilot** | Catching docs drift inside normal PR review | Focused scope by design |
+| **DocPilot** | Catching missing README/docs/changelog work inside normal PR review | Focused scope by design |
 | Generic AI review bots | Broad code review across many issue types | Docs coverage is usually incidental, not the product |
 | Docs platforms | Hosting / publishing / search / docs portals | Heavier adoption, migration, and subscription overhead |
 | PR templates + manual review | Lightweight reminders | Easy to ignore, inconsistent in practice |
 
-DocPilot is intentionally narrow: it answers one high-value question in every PR — **did this code change require a docs update?**
+DocPilot is intentionally narrow: it answers one high-value question in every PR — **did this code change require a README, docs, or changelog update before merge?**
 
 ## Cost
 

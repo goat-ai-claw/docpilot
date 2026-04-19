@@ -1,7 +1,7 @@
 {
   "name": "docpilot",
   "version": "1.0.0",
-  "description": "AI-powered documentation analysis and auto-update for GitHub pull requests",
+  "description": "PR documentation gate for README, docs, and changelog updates in GitHub pull requests",
   "main": "dist/index.js",
   "scripts": {
     "build": "ncc build src/index.ts -o dist --source-map --license licenses.txt",

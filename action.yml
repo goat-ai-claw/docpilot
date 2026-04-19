@@ -1,5 +1,5 @@
 name: 'DocPilot'
-description: 'AI-powered documentation analysis and auto-update for pull requests'
+description: 'PR documentation gate for README, docs, and changelog updates'
 author: 'DocPilot'
 
 branding:
@@ -31,7 +31,7 @@ inputs:
     required: false
     default: ''
   comment_on_no_impact:
-    description: 'Set to "true" to keep all-clear comments when no docs drift is detected. Default is quiet mode.'
+    description: 'Set to "true" to keep all-clear comments when no documentation changes are needed. Default is quiet mode.'
     required: false
     default: 'false'
 
