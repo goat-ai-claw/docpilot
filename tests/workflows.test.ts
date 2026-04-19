@@ -2,6 +2,8 @@ import fs from 'fs';
 import path from 'path';
 
 describe('workflow definitions', () => {
+  const repoRoot = path.join(__dirname, '..');
+
   function collectIfBlocks(content: string) {
     const lines = content.split(/\r?\n/);
     const blocks: string[] = [];
@@ -56,12 +58,21 @@ describe('workflow definitions', () => {
   });
 
   it('checks for OpenAI key availability via a dedicated step output', () => {
-    const workflowsDir = path.join(__dirname, '..', '.github', 'workflows');
+    const workflowsDir = path.join(repoRoot, '.github', 'workflows');
 
     for (const file of ['docpilot.yml', 'test.yml']) {
       const content = fs.readFileSync(path.join(workflowsDir, file), 'utf8');
       expect(content).toContain('id: openai-key');
       expect(content).toContain("steps.openai-key.outputs.present == 'true'");
     }
+  });
+
+  it('documents the fork-safe secret guard pattern in README examples', () => {
+    const readme = fs.readFileSync(path.join(repoRoot, 'README.md'), 'utf8');
+
+    expect(readme).toContain('id: openai-key');
+    expect(readme).toContain("if: ${{ steps.openai-key.outputs.present == 'true' }}");
+    expect(readme).not.toContain("if: ${{ secrets.OPENAI_API_KEY != '' }}");
+    expect(readme).not.toContain('recommended `if: ${{ secrets.OPENAI_API_KEY != \'\' }}` guard');
   });
 });

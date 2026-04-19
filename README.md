@@ -38,20 +38,32 @@ on:
 
 jobs:
   docs:
-    if: ${{ secrets.OPENAI_API_KEY != '' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
       pull-requests: read
     steps:
       - uses: actions/checkout@v4
+
+      - name: Check OpenAI key availability
+        id: openai-key
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          if [ -n "$OPENAI_API_KEY" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: goat-ai-claw/docpilot@v1
+        if: ${{ steps.openai-key.outputs.present == 'true' }}
         with:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           mode: report
 ```
 
-This default setup keeps permissions narrow, skips safely when the OpenAI secret is unavailable, and lets teams evaluate DocPilot before granting write access.
+This default setup keeps permissions narrow, skips safely when the OpenAI secret is unavailable, and lets teams evaluate DocPilot before granting write access without relying on the invalid `secrets.*`-inside-`if:` pattern that GitHub rejects.
 
 **Step 3** — Open a pull request. In `report` mode, DocPilot writes a GitHub Actions step summary and sets outputs without posting PR comments or committing changes.
 
@@ -127,7 +139,7 @@ In `auto-update` mode, DocPilot commits suggestions directly to the PR branch wr
 - `suggest` mode needs `pull-requests: write`
 - `auto-update` mode needs `pull-requests: write` and `contents: write`
 - DocPilot is quiet by default when impact is `none`; set `comment_on_no_impact: 'true'` if you want explicit all-clear comments on every PR
-- On pull requests from forks, repository secrets like `OPENAI_API_KEY` are usually unavailable, so the recommended `if: ${{ secrets.OPENAI_API_KEY != '' }}` guard avoids noisy failures
+- On pull requests from forks, repository secrets like `OPENAI_API_KEY` are usually unavailable, so use the `openai-key` step shown above and gate the DocPilot step with `if: ${{ steps.openai-key.outputs.present == 'true' }}` instead of referencing `secrets.*` directly inside an `if:` expression
 
 ## Privacy and limitations
 
