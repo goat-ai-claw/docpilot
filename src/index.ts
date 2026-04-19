@@ -1,7 +1,7 @@
 import * as core from '@actions/core';
 import { getOctokit } from '@actions/github';
 import { analyzeDiff } from './analyzer';
-import { getPRContext, parseDocPaths, logInfo, logError, DEFAULT_DOC_PATHS } from './utils';
+import { getPRContext, parseDocPaths, logInfo, logError, DEFAULT_DOC_PATHS, prioritizeDocFiles } from './utils';
 import { assertValidMode, assertValidFailOnImpact, publishAnalysisResult } from './publish';
 
 async function getPRDiff(
@@ -80,7 +80,7 @@ async function collectDocFiles(
           f.startsWith(docPath) &&
           (f.endsWith('.md') || f.endsWith('.mdx') || f.endsWith('.txt') || f.endsWith('.rst'))
       );
-      for (const match of matches.slice(0, 5)) {
+      for (const match of prioritizeDocFiles(matches)) {
         const content = await getFileContent(octokit, owner, repo, match, headSha);
         if (content) docs[match] = content;
       }

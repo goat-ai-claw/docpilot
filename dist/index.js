@@ -41502,7 +41502,7 @@ async function collectDocFiles(octokit, owner, repo, headSha, docPaths) {
             // Directory — collect all markdown/text files inside
             const matches = allFiles.filter(f => f.startsWith(docPath) &&
                 (f.endsWith('.md') || f.endsWith('.mdx') || f.endsWith('.txt') || f.endsWith('.rst')));
-            for (const match of matches.slice(0, 5)) {
+            for (const match of (0, utils_1.prioritizeDocFiles)(matches)) {
                 const content = await getFileContent(octokit, owner, repo, match, headSha);
                 if (content)
                     docs[match] = content;
@@ -41860,7 +41860,9 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.DEFAULT_DOC_PATHS = void 0;
+exports.DOC_FILES_PER_DIRECTORY_LIMIT = exports.DEFAULT_DOC_PATHS = void 0;
+exports.isSupportedDocFile = isSupportedDocFile;
+exports.prioritizeDocFiles = prioritizeDocFiles;
 exports.getPRContext = getPRContext;
 exports.parseDocPaths = parseDocPaths;
 exports.truncate = truncate;
@@ -41870,6 +41872,121 @@ exports.logError = logError;
 const core = __importStar(__nccwpck_require__(7484));
 const github = __importStar(__nccwpck_require__(3228));
 exports.DEFAULT_DOC_PATHS = 'README.md,docs/,CHANGELOG.md,UPGRADING.md';
+exports.DOC_FILES_PER_DIRECTORY_LIMIT = 5;
+const DOC_FILE_EXTENSIONS = ['.md', '.mdx', '.txt', '.rst'];
+const AUTHORITATIVE_DOC_NAMES = new Map([
+    ['readme', 120],
+    ['changelog', 110],
+    ['changes', 110],
+    ['history', 105],
+    ['releasenotes', 105],
+    ['releases', 100],
+    ['upgrade', 100],
+    ['upgrading', 100],
+    ['migration', 100],
+    ['migrating', 100],
+]);
+const USER_FACING_DOC_NAMES = new Map([
+    ['gettingstarted', 70],
+    ['quickstart', 68],
+    ['installation', 65],
+    ['install', 65],
+    ['configuration', 60],
+    ['config', 60],
+    ['usage', 58],
+    ['guide', 56],
+    ['guides', 56],
+    ['tutorial', 54],
+    ['reference', 52],
+    ['references', 52],
+    ['faq', 48],
+    ['troubleshooting', 46],
+    ['overview', 44],
+]);
+const DEPRIORITIZED_DOC_NAMES = new Set([
+    'summary',
+    'sidebar',
+    'sidebars',
+    'navigation',
+    'nav',
+    'toc',
+    'snippet',
+    'snippets',
+    'template',
+    'templates',
+    'metadata',
+    'meta',
+    'manifest',
+]);
+const DEPRIORITIZED_DOC_SEGMENTS = new Set([
+    'snippet',
+    'snippets',
+    'fragment',
+    'fragments',
+    'partial',
+    'partials',
+    'template',
+    'templates',
+    'generated',
+]);
+function normalizeDocSegment(segment) {
+    return segment.toLowerCase().replace(/\.[^.]+$/, '').replace(/[^a-z0-9]+/g, '');
+}
+function getRawDocSegments(path) {
+    return path.split('/').filter(Boolean);
+}
+function getDocPriorityScore(path) {
+    const rawSegments = getRawDocSegments(path);
+    const segments = rawSegments.map(normalizeDocSegment).filter(Boolean);
+    if (segments.length === 0)
+        return 0;
+    const basename = segments[segments.length - 1];
+    const rawBasename = rawSegments[rawSegments.length - 1]?.toLowerCase() ?? '';
+    const parentSegments = segments.slice(0, -1);
+    const rawParentSegments = rawSegments.slice(0, -1).map(segment => segment.toLowerCase());
+    let score = 0;
+    score += AUTHORITATIVE_DOC_NAMES.get(basename) ?? 0;
+    score += USER_FACING_DOC_NAMES.get(basename) ?? 0;
+    for (const segment of parentSegments) {
+        if (AUTHORITATIVE_DOC_NAMES.has(segment)) {
+            score += 45;
+        }
+        else if (USER_FACING_DOC_NAMES.has(segment)) {
+            score += 18;
+        }
+        if (DEPRIORITIZED_DOC_SEGMENTS.has(segment)) {
+            score -= 40;
+        }
+    }
+    if (DEPRIORITIZED_DOC_NAMES.has(basename)) {
+        score -= 120;
+    }
+    if (rawBasename.startsWith('_') || rawBasename.startsWith('.')) {
+        score -= 40;
+    }
+    if (rawParentSegments.some(segment => segment.startsWith('_') || segment.startsWith('.'))) {
+        score -= 10;
+    }
+    score -= segments.length;
+    return score;
+}
+function isSupportedDocFile(path) {
+    return DOC_FILE_EXTENSIONS.some(extension => path.toLowerCase().endsWith(extension));
+}
+function prioritizeDocFiles(paths, limit = exports.DOC_FILES_PER_DIRECTORY_LIMIT) {
+    return [...paths]
+        .filter(isSupportedDocFile)
+        .sort((left, right) => {
+        const scoreDifference = getDocPriorityScore(right) - getDocPriorityScore(left);
+        if (scoreDifference !== 0)
+            return scoreDifference;
+        const depthDifference = left.split('/').length - right.split('/').length;
+        if (depthDifference !== 0)
+            return depthDifference;
+        return left.localeCompare(right);
+    })
+        .slice(0, limit);
+}
 function getPRContext() {
     const context = github.context;
     const prNumber = context.payload.pull_request?.number;

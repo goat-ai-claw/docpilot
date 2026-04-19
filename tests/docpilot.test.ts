@@ -1,5 +1,5 @@
 import { buildComment, shouldPostComment, syncComment } from '../src/commenter';
-import { DEFAULT_DOC_PATHS, parseDocPaths, truncate } from '../src/utils';
+import { DEFAULT_DOC_PATHS, parseDocPaths, prioritizeDocFiles, truncate } from '../src/utils';
 import type { AnalysisResult } from '../src/analyzer';
 
 describe('buildComment', () => {
@@ -224,6 +224,46 @@ describe('parseDocPaths', () => {
 
   it('filters empty strings', () => {
     expect(parseDocPaths('README.md,,docs/')).toEqual(['README.md', 'docs/']);
+  });
+});
+
+describe('prioritizeDocFiles', () => {
+  it('keeps authoritative nested docs when a directory has more than five matches', () => {
+    const files = [
+      'docs/nav.md',
+      'docs/sidebar.md',
+      'docs/snippets.md',
+      'docs/template.md',
+      'docs/changelog/README.md',
+      'docs/guide/README.md',
+      'docs/migration.md',
+      'docs/getting-started.md',
+      'docs/installation.md',
+    ];
+
+    expect(prioritizeDocFiles(files, 5)).toEqual([
+      'docs/changelog/README.md',
+      'docs/guide/README.md',
+      'docs/migration.md',
+      'docs/getting-started.md',
+      'docs/installation.md',
+    ]);
+  });
+
+  it('deprioritizes nav and summary docs behind release and upgrade surfaces', () => {
+    const files = [
+      'docs/SUMMARY.md',
+      'docs/sidebar.md',
+      'docs/release-notes.md',
+      'docs/configuration.md',
+      'docs/upgrade.md',
+    ];
+
+    expect(prioritizeDocFiles(files, 3)).toEqual([
+      'docs/release-notes.md',
+      'docs/upgrade.md',
+      'docs/configuration.md',
+    ]);
   });
 });
 

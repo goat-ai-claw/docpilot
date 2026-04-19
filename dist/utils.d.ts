@@ -7,6 +7,9 @@ export interface PRContext {
     baseSha: string;
 }
 export declare const DEFAULT_DOC_PATHS = "README.md,docs/,CHANGELOG.md,UPGRADING.md";
+export declare const DOC_FILES_PER_DIRECTORY_LIMIT = 5;
+export declare function isSupportedDocFile(path: string): boolean;
+export declare function prioritizeDocFiles(paths: string[], limit?: number): string[];
 export declare function getPRContext(): PRContext;
 export declare function parseDocPaths(docPathsInput: string): string[];
 export declare function truncate(text: string, maxChars: number): string;
