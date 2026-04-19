@@ -1,5 +1,7 @@
 # DocPilot
 
+[![CI](https://github.com/goat-ai-claw/docpilot/actions/workflows/test.yml/badge.svg)](https://github.com/goat-ai-claw/docpilot/actions/workflows/test.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) [![GitHub stars](https://img.shields.io/github/stars/goat-ai-claw/docpilot?style=social)](https://github.com/goat-ai-claw/docpilot/stargazers)
+
 **AI-powered documentation that stays in sync with your code.**
 
 DocPilot is a GitHub Action that analyzes every pull request and tells you exactly which docs need updating — before you merge stale documentation into main.

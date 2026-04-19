@@ -1,0 +1,22 @@
+name: DocPilot
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+jobs:
+  docs:
+    name: DocPilot Self-Dogfood
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run DocPilot on this PR
+        if: ${{ secrets.OPENAI_API_KEY != '' }}
+        uses: goat-ai-claw/docpilot@v1
+        with:
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
