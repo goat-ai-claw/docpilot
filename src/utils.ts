@@ -10,6 +10,8 @@ export interface PRContext {
   baseSha: string;
 }
 
+export const DEFAULT_DOC_PATHS = 'README.md,docs/,CHANGELOG.md,UPGRADING.md';
+
 export function getPRContext(): PRContext {
   const context = github.context;
   const prNumber = context.payload.pull_request?.number;

@@ -1,7 +1,7 @@
 import * as core from '@actions/core';
 import { getOctokit } from '@actions/github';
 import { analyzeDiff } from './analyzer';
-import { getPRContext, parseDocPaths, logInfo, logError } from './utils';
+import { getPRContext, parseDocPaths, logInfo, logError, DEFAULT_DOC_PATHS } from './utils';
 import { assertValidMode, assertValidFailOnImpact, publishAnalysisResult } from './publish';
 
 async function getPRDiff(
@@ -146,7 +146,7 @@ async function run(): Promise<void> {
     const openaiApiKey = core.getInput('openai_api_key', { required: true });
     const githubToken = core.getInput('github_token', { required: true });
     const model = core.getInput('model') || 'gpt-4o-mini';
-    const docPaths = parseDocPaths(core.getInput('doc_paths') || 'README.md,docs/,CHANGELOG.md');
+    const docPaths = parseDocPaths(core.getInput('doc_paths') || DEFAULT_DOC_PATHS);
     const mode = core.getInput('mode') || 'suggest';
     const failOnImpact = (core.getInput('fail_on_impact') || '').toLowerCase();
     const commentOnNoImpact = (core.getInput('comment_on_no_impact') || 'false').toLowerCase() === 'true';

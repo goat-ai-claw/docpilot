@@ -41557,7 +41557,7 @@ async function run() {
         const openaiApiKey = core.getInput('openai_api_key', { required: true });
         const githubToken = core.getInput('github_token', { required: true });
         const model = core.getInput('model') || 'gpt-4o-mini';
-        const docPaths = (0, utils_1.parseDocPaths)(core.getInput('doc_paths') || 'README.md,docs/,CHANGELOG.md');
+        const docPaths = (0, utils_1.parseDocPaths)(core.getInput('doc_paths') || utils_1.DEFAULT_DOC_PATHS);
         const mode = core.getInput('mode') || 'suggest';
         const failOnImpact = (core.getInput('fail_on_impact') || '').toLowerCase();
         const commentOnNoImpact = (core.getInput('comment_on_no_impact') || 'false').toLowerCase() === 'true';
@@ -41860,6 +41860,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DEFAULT_DOC_PATHS = void 0;
 exports.getPRContext = getPRContext;
 exports.parseDocPaths = parseDocPaths;
 exports.truncate = truncate;
@@ -41868,6 +41869,7 @@ exports.logWarning = logWarning;
 exports.logError = logError;
 const core = __importStar(__nccwpck_require__(7484));
 const github = __importStar(__nccwpck_require__(3228));
+exports.DEFAULT_DOC_PATHS = 'README.md,docs/,CHANGELOG.md,UPGRADING.md';
 function getPRContext() {
     const context = github.context;
     const prNumber = context.payload.pull_request?.number;

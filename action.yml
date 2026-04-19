@@ -19,9 +19,9 @@ inputs:
     required: false
     default: 'gpt-4o-mini'
   doc_paths:
-    description: 'Comma-separated list of doc files or directories to check (directories end with /)'
+    description: 'Comma-separated list of doc files or directories to check (directories end with /). Defaults cover README, docs/, CHANGELOG.md, and UPGRADING.md.'
     required: false
-    default: 'README.md,docs/,CHANGELOG.md'
+    default: 'README.md,docs/,CHANGELOG.md,UPGRADING.md'
   mode:
     description: 'Operation mode: "report" writes a step summary without PR writes, "suggest" posts a PR comment, and "auto-update" commits changes directly to the PR branch'
     required: false

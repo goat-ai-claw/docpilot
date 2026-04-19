@@ -1,5 +1,5 @@
 import { buildComment, shouldPostComment, syncComment } from '../src/commenter';
-import { parseDocPaths, truncate } from '../src/utils';
+import { DEFAULT_DOC_PATHS, parseDocPaths, truncate } from '../src/utils';
 import type { AnalysisResult } from '../src/analyzer';
 
 describe('buildComment', () => {
@@ -201,6 +201,15 @@ describe('syncComment', () => {
 });
 
 describe('parseDocPaths', () => {
+  it('includes upgrade guides in the default doc surfaces', () => {
+    expect(parseDocPaths(DEFAULT_DOC_PATHS)).toEqual([
+      'README.md',
+      'docs/',
+      'CHANGELOG.md',
+      'UPGRADING.md',
+    ]);
+  });
+
   it('splits comma-separated paths', () => {
     expect(parseDocPaths('README.md,docs/,CHANGELOG.md')).toEqual([
       'README.md',
