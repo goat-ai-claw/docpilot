@@ -1,6 +1,6 @@
 # DocPilot
 
-[![CI](https://github.com/goat-ai-claw/docpilot/actions/workflows/test.yml/badge.svg)](https://github.com/goat-ai-claw/docpilot/actions/workflows/test.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) [![GitHub stars](https://img.shields.io/github/stars/goat-ai-claw/docpilot?style=social)](https://github.com/goat-ai-claw/docpilot/stargazers)
+[![CI](https://github.com/goat-ai-claw/docpilot/actions/workflows/ci.yml/badge.svg)](https://github.com/goat-ai-claw/docpilot/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) [![GitHub stars](https://img.shields.io/github/stars/goat-ai-claw/docpilot?style=social)](https://github.com/goat-ai-claw/docpilot/stargazers)
 
 **AI-powered documentation that stays in sync with your code.**
 
@@ -14,6 +14,12 @@ Documentation drift is inevitable. Functions get renamed, config keys change, ne
 - **No server required** — runs entirely in GitHub Actions using your own OpenAI key
 - **Auto-update mode** — optionally commits doc suggestions directly to the PR branch
 - **Changelog generation** — drafts Keep-a-Changelog entries from your diff automatically
+
+## See it in action
+
+[![DocPilot PR comment demo](assets/docpilot-demo-pr-comment.png)](https://github.com/goat-ai-claw/docpilot/pull/1)
+
+Real example from [PR #1](https://github.com/goat-ai-claw/docpilot/pull/1): DocPilot reviews the diff, summarizes the documentation impact, flags the exact file that needs updating, and drafts a changelog entry.
 
 ## Quickstart
 
