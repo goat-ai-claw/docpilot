@@ -41451,8 +41451,8 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(7484));
 const github_1 = __nccwpck_require__(3228);
 const analyzer_1 = __nccwpck_require__(8561);
-const commenter_1 = __nccwpck_require__(2069);
 const utils_1 = __nccwpck_require__(1798);
+const publish_1 = __nccwpck_require__(4496);
 async function getPRDiff(octokit, owner, repo, prNumber) {
     // Request the diff media type
     const response = await octokit.request('GET /repos/{owner}/{repo}/pulls/{pull_number}', {
@@ -41560,9 +41560,7 @@ async function run() {
         const docPaths = (0, utils_1.parseDocPaths)(core.getInput('doc_paths') || 'README.md,docs/,CHANGELOG.md');
         const mode = core.getInput('mode') || 'suggest';
         const commentOnNoImpact = (core.getInput('comment_on_no_impact') || 'false').toLowerCase() === 'true';
-        if (mode !== 'suggest' && mode !== 'auto-update') {
-            throw new Error(`Invalid mode "${mode}". Must be "suggest" or "auto-update".`);
-        }
+        (0, publish_1.assertValidMode)(mode);
         const octokit = (0, github_1.getOctokit)(githubToken);
         const prContext = (0, utils_1.getPRContext)();
         (0, utils_1.logInfo)(`Running in "${mode}" mode on PR #${prContext.prNumber}`);
@@ -41593,17 +41591,17 @@ async function run() {
         (0, utils_1.logInfo)(`Sending diff to ${model} for analysis...`);
         const analysis = await (0, analyzer_1.analyzeDiff)(openaiApiKey, model, diff, existingDocs, prContext.prNumber, pr.title);
         (0, utils_1.logInfo)(`Impact: ${analysis.overallImpact} | Docs needing updates: ${analysis.docsNeedingUpdate.length}`);
-        // Auto-update mode: commit changes directly to PR branch
-        if (mode === 'auto-update' && analysis.docsNeedingUpdate.length > 0) {
-            (0, utils_1.logInfo)(`Auto-update mode: committing suggestions to branch "${prContext.headRef}"...`);
-            await autoUpdateDocs(octokit, prContext.owner, prContext.repo, prContext.headRef, analysis.docsNeedingUpdate.map(d => ({
-                file: d.file,
-                suggestedChange: d.suggestedChange,
-            })));
-        }
-        // Keep PR comments high-signal: quiet by default when no docs drift is detected
-        (0, utils_1.logInfo)('Synchronizing analysis comment on PR...');
-        await (0, commenter_1.syncComment)(octokit, prContext.owner, prContext.repo, prContext.prNumber, analysis, commentOnNoImpact);
+        await (0, publish_1.publishAnalysisResult)({
+            mode,
+            octokit,
+            owner: prContext.owner,
+            repo: prContext.repo,
+            prNumber: prContext.prNumber,
+            headRef: prContext.headRef,
+            analysis,
+            commentOnNoImpact,
+            autoUpdateDocsFn: autoUpdateDocs,
+        });
         // Expose outputs
         core.setOutput('impact', analysis.overallImpact);
         core.setOutput('docs_updated', String(analysis.docsNeedingUpdate.length));
@@ -41681,6 +41679,120 @@ async function callLLM(apiKey, model, messages, maxTokens = 2048) {
         }
     }
     throw new Error(`LLM call failed after ${MAX_RETRIES} attempts: ${lastError?.message}`);
+}
+
+
+/***/ }),
+
+/***/ 4496:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.assertValidMode = assertValidMode;
+exports.buildReportBody = buildReportBody;
+exports.publishAnalysisResult = publishAnalysisResult;
+const core = __importStar(__nccwpck_require__(7484));
+const commenter_1 = __nccwpck_require__(2069);
+const utils_1 = __nccwpck_require__(1798);
+function assertValidMode(mode) {
+    if (mode !== 'suggest' && mode !== 'auto-update' && mode !== 'report') {
+        throw new Error(`Invalid mode "${mode}". Must be "report", "suggest", or "auto-update".`);
+    }
+}
+function buildReportBody(analysis) {
+    const lines = [
+        '## DocPilot report',
+        '',
+        `**Impact:** \`${analysis.overallImpact}\``,
+        `**Summary:** ${analysis.summary}`,
+        `**Docs needing updates:** ${analysis.docsNeedingUpdate.length}`,
+    ];
+    if (analysis.docsNeedingUpdate.length > 0) {
+        lines.push('');
+        lines.push('### Suggested doc updates');
+        lines.push('');
+        for (const suggestion of analysis.docsNeedingUpdate.slice(0, 5)) {
+            lines.push(`- \`${suggestion.file}\` — **${suggestion.priority}** priority: ${suggestion.reason}`);
+        }
+    }
+    if (analysis.readmeIssues.length > 0) {
+        lines.push('');
+        lines.push('### README issues');
+        lines.push('');
+        for (const issue of analysis.readmeIssues) {
+            lines.push(`- ${issue}`);
+        }
+    }
+    if (analysis.changelogEntry) {
+        lines.push('');
+        lines.push('### Suggested CHANGELOG.md entry');
+        lines.push('');
+        lines.push('```markdown');
+        lines.push(analysis.changelogEntry);
+        lines.push('```');
+    }
+    return lines.join('\n');
+}
+async function defaultSummaryWrite(markdown) {
+    try {
+        await core.summary.addRaw(markdown, true).write();
+    }
+    catch (error) {
+        (0, utils_1.logWarning)(`Failed to write GitHub step summary: ${String(error)}`);
+    }
+}
+async function publishAnalysisResult({ mode, octokit, owner, repo, prNumber, headRef, analysis, commentOnNoImpact, autoUpdateDocsFn, syncCommentFn = commenter_1.syncComment, summaryWriteFn = defaultSummaryWrite, }) {
+    if (mode === 'auto-update' && analysis.docsNeedingUpdate.length > 0) {
+        (0, utils_1.logInfo)(`Auto-update mode: committing suggestions to branch "${headRef}"...`);
+        await autoUpdateDocsFn(octokit, owner, repo, headRef, analysis.docsNeedingUpdate.map(d => ({
+            file: d.file,
+            suggestedChange: d.suggestedChange,
+        })));
+    }
+    if (mode === 'report') {
+        (0, utils_1.logInfo)('Report mode: skipping PR comments and commit side effects');
+        const reportBody = buildReportBody(analysis);
+        (0, utils_1.logInfo)(`Report summary:\n${reportBody}`);
+        await summaryWriteFn(reportBody);
+        return;
+    }
+    (0, utils_1.logInfo)('Synchronizing analysis comment on PR...');
+    await syncCommentFn(octokit, owner, repo, prNumber, analysis, commentOnNoImpact);
 }
 
 

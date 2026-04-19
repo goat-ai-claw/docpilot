@@ -27,7 +27,7 @@ Animated walkthrough of a real [PR #1](https://github.com/goat-ai-claw/docpilot/
 
 **Step 1** — Add your OpenAI key as a GitHub secret named `OPENAI_API_KEY`.
 
-**Step 2** — Create `.github/workflows/docpilot.yml` for the default `suggest` mode:
+**Step 2** — Start with a read-only trial in `report` mode. Create `.github/workflows/docpilot.yml`:
 
 ```yaml
 name: DocPilot
@@ -41,17 +41,21 @@ jobs:
     if: ${{ secrets.OPENAI_API_KEY != '' }}
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: write # needed to post PR comments
+      contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@v4
       - uses: goat-ai-claw/docpilot@v1
         with:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          mode: report
 ```
 
-This default setup keeps permissions narrow and skips safely when the OpenAI secret is unavailable.
+This default setup keeps permissions narrow, skips safely when the OpenAI secret is unavailable, and lets teams evaluate DocPilot before granting write access.
 
-**Step 3** — Open a pull request. DocPilot comments when it detects likely documentation drift, so it stays quiet on no-impact PRs by default.
+**Step 3** — Open a pull request. In `report` mode, DocPilot writes a GitHub Actions step summary and sets outputs without posting PR comments or committing changes.
+
+**Step 4** — When you want inline PR feedback, switch to `mode: suggest` and grant `pull-requests: write`.
 
 > ⚠️ **DocPilot — Moderate documentation impact**
 >
@@ -68,7 +72,7 @@ This default setup keeps permissions narrow and skips safely when the OpenAI sec
 | `github_token` | `github.token` | GitHub token for posting comments and reading PRs. |
 | `model` | `gpt-4o-mini` | OpenAI model. Use `gpt-4o` for higher quality. |
 | `doc_paths` | `README.md,docs/,CHANGELOG.md` | Comma-separated files or directories to analyze. Directories end with `/`. |
-| `mode` | `suggest` | `suggest` posts a PR comment. `auto-update` commits suggestions to the PR branch. |
+| `mode` | `suggest` | `report` writes a step summary only, `suggest` posts a PR comment, and `auto-update` commits suggestions to the PR branch. |
 | `comment_on_no_impact` | `false` | When `true`, keeps an all-clear PR comment even if DocPilot finds no docs drift. Default is quiet mode. |
 
 ## Outputs
@@ -78,6 +82,17 @@ This default setup keeps permissions narrow and skips safely when the OpenAI sec
 | `impact` | `none`, `minor`, `moderate`, or `major` |
 | `docs_updated` | Number of files flagged for updates |
 | `summary` | One-line summary of the PR's documentation impact |
+
+## Example: Suggest mode PR comments
+
+```yaml
+- uses: goat-ai-claw/docpilot@v1
+  with:
+    openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+    mode: suggest
+```
+
+Use `suggest` when you want inline PR comments. Grant `pull-requests: write` for this mode.
 
 ## Example: Gate merges on major doc impact
 
@@ -110,6 +125,7 @@ In `auto-update` mode, DocPilot commits suggestions directly to the PR branch wr
 
 ## Permissions and fork behavior
 
+- `report` mode is read-only and works with `contents: read` + `pull-requests: read`
 - `suggest` mode needs `pull-requests: write`
 - `auto-update` mode needs `pull-requests: write` and `contents: write`
 - DocPilot is quiet by default when impact is `none`; set `comment_on_no_impact: 'true'` if you want explicit all-clear comments on every PR

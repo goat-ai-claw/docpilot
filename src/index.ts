@@ -1,8 +1,8 @@
 import * as core from '@actions/core';
 import { getOctokit } from '@actions/github';
 import { analyzeDiff } from './analyzer';
-import { syncComment } from './commenter';
 import { getPRContext, parseDocPaths, logInfo, logError } from './utils';
+import { assertValidMode, publishAnalysisResult } from './publish';
 
 async function getPRDiff(
   octokit: ReturnType<typeof getOctokit>,
@@ -150,9 +150,7 @@ async function run(): Promise<void> {
     const mode = core.getInput('mode') || 'suggest';
     const commentOnNoImpact = (core.getInput('comment_on_no_impact') || 'false').toLowerCase() === 'true';
 
-    if (mode !== 'suggest' && mode !== 'auto-update') {
-      throw new Error(`Invalid mode "${mode}". Must be "suggest" or "auto-update".`);
-    }
+    assertValidMode(mode);
 
     const octokit = getOctokit(githubToken);
     const prContext = getPRContext();
@@ -210,31 +208,17 @@ async function run(): Promise<void> {
 
     logInfo(`Impact: ${analysis.overallImpact} | Docs needing updates: ${analysis.docsNeedingUpdate.length}`);
 
-    // Auto-update mode: commit changes directly to PR branch
-    if (mode === 'auto-update' && analysis.docsNeedingUpdate.length > 0) {
-      logInfo(`Auto-update mode: committing suggestions to branch "${prContext.headRef}"...`);
-      await autoUpdateDocs(
-        octokit,
-        prContext.owner,
-        prContext.repo,
-        prContext.headRef,
-        analysis.docsNeedingUpdate.map(d => ({
-          file: d.file,
-          suggestedChange: d.suggestedChange,
-        }))
-      );
-    }
-
-    // Keep PR comments high-signal: quiet by default when no docs drift is detected
-    logInfo('Synchronizing analysis comment on PR...');
-    await syncComment(
+    await publishAnalysisResult({
+      mode,
       octokit,
-      prContext.owner,
-      prContext.repo,
-      prContext.prNumber,
+      owner: prContext.owner,
+      repo: prContext.repo,
+      prNumber: prContext.prNumber,
+      headRef: prContext.headRef,
       analysis,
-      commentOnNoImpact
-    );
+      commentOnNoImpact,
+      autoUpdateDocsFn: autoUpdateDocs,
+    });
 
     // Expose outputs
     core.setOutput('impact', analysis.overallImpact);

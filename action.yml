@@ -23,7 +23,7 @@ inputs:
     required: false
     default: 'README.md,docs/,CHANGELOG.md'
   mode:
-    description: 'Operation mode: "suggest" posts a PR comment, "auto-update" commits changes directly to the PR branch'
+    description: 'Operation mode: "report" writes a step summary without PR writes, "suggest" posts a PR comment, and "auto-update" commits changes directly to the PR branch'
     required: false
     default: 'suggest'
   comment_on_no_impact:
