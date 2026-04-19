@@ -1,0 +1,40 @@
+name: 'DocPilot'
+description: 'AI-powered documentation analysis and auto-update for pull requests'
+author: 'DocPilot'
+
+branding:
+  icon: 'book-open'
+  color: 'blue'
+
+inputs:
+  openai_api_key:
+    description: 'OpenAI API key for LLM-powered analysis'
+    required: true
+  github_token:
+    description: 'GitHub token for PR interactions'
+    required: false
+    default: ${{ github.token }}
+  model:
+    description: 'OpenAI model to use for analysis'
+    required: false
+    default: 'gpt-4o-mini'
+  doc_paths:
+    description: 'Comma-separated list of doc files or directories to check (directories end with /)'
+    required: false
+    default: 'README.md,docs/,CHANGELOG.md'
+  mode:
+    description: 'Operation mode: "suggest" posts a PR comment, "auto-update" commits changes directly to the PR branch'
+    required: false
+    default: 'suggest'
+
+outputs:
+  impact:
+    description: 'Overall documentation impact level: none, minor, moderate, or major'
+  docs_updated:
+    description: 'Number of documentation files that need updates'
+  summary:
+    description: 'Short summary of the PR changes and documentation impact'
+
+runs:
+  using: 'node20'
+  main: 'dist/index.js'
